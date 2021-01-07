@@ -15,4 +15,5 @@ require (
 	github.com/shirou/gopsutil v3.20.12+incompatible
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	google.golang.org/grpc v1.34.0 // indirect
+	gopkg.in/ini.v1 v1.62.0 // indirect
 )

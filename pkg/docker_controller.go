@@ -1,20 +1,35 @@
 package pkg
 
-import "Unison-Docker-Controller/internal/local_sys"
+import (
+	"Unison-Docker-Controller/internal/config"
+	"Unison-Docker-Controller/internal/local_sys"
+)
 
 type DockerController struct {
-	SysBaseInfo *local_sys.SystemBaseInfo
+	Config         config.Config
+	SysBaseInfo    *local_sys.SystemBaseInfo
+	SysDynamicInfo *local_sys.SystemDynamicInfo
 }
 
-func NewDockerController() (*DockerController, error) {
-	sysInfo, err := local_sys.NewLocalSystemInfo()
-	if err != nil {
-		return nil, err
+func NewDockerController(cfg config.Config) (*DockerController, error) {
+	c := &DockerController{
+		Config:         cfg,
+		SysBaseInfo:    nil,
+		SysDynamicInfo: nil,
 	}
 
-	c := &DockerController{
-		SysBaseInfo: sysInfo,
+	sysBaseInfo, errSBI := local_sys.NewSystemBaseInfo(cfg)
+	if errSBI != nil {
+		return nil, errSBI
 	}
+
+	sysDynamicInfo, errSDI := local_sys.NewSystemDynamicInfo(cfg)
+	if errSDI != nil {
+		return nil, errSDI
+	}
+
+	c.SysBaseInfo = sysBaseInfo
+	c.SysDynamicInfo = sysDynamicInfo
 
 	return c, nil
 }
