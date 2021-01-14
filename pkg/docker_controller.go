@@ -33,3 +33,8 @@ func NewDockerController(cfg config.Config) (*DockerController, error) {
 
 	return c, nil
 }
+
+func (ctr *DockerController) UpdateInfo() error {
+	err := ctr.SysDynamicInfo.UpdateStatus(ctr.Config)
+	return err
+}

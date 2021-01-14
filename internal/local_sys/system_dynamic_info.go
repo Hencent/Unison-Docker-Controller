@@ -25,26 +25,36 @@ func NewSystemDynamicInfo(cfg config.Config) (*SystemDynamicInfo, error) {
 	return sysInfo, nil
 }
 
-func (sysInfo *SystemDynamicInfo) UpdateStatus(cfg config.Config) error {
+func (sysDynamicInfo *SystemDynamicInfo) UpdateStatus(cfg config.Config) error {
 	virtualMemory, errVM := mem.VirtualMemory()
 	if errVM != nil {
 		return errVM
 	}
-
-	sysInfo.availableRam = virtualMemory.Available
+	sysDynamicInfo.availableRam = virtualMemory.Available
+	ramReserve := virtualMemory.Total * cfg.RamReserve / 100
+	if sysDynamicInfo.availableRam > ramReserve {
+		sysDynamicInfo.availableRam -= ramReserve
+	} else {
+		sysDynamicInfo.availableRam = 0
+	}
 
 	coreLoad, errCL := cpu.Percent(time.Millisecond, true)
 	if errCL != nil {
 		return errCL
 	}
-
-	sysInfo.coreLoad = coreLoad
+	sysDynamicInfo.coreLoad = coreLoad
 
 	diskInfo, errDI := disk.Usage(cfg.DockerContainerPath)
 	if errDI != nil {
 		return errDI
 	}
-	sysInfo.availableDisk = diskInfo.Free
+	sysDynamicInfo.availableDisk = diskInfo.Free
+	diskReserve := diskInfo.Total * cfg.DiskReserve / 100
+	if sysDynamicInfo.availableDisk > diskReserve {
+		sysDynamicInfo.availableDisk -= diskReserve
+	} else {
+		sysDynamicInfo.availableDisk = 0
+	}
 
 	return nil
 }

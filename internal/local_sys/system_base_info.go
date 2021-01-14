@@ -4,16 +4,18 @@ import (
 	"Unison-Docker-Controller/internal/config"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
-	"runtime"
 )
 
 type SystemBaseInfo struct {
-	osName string
-	osArch string
+	platform        string
+	PlatformFamily  string
+	PlatformVersion string
 
 	totalRam uint64
 
+	cpuModelName  string
 	logicalCores  int
 	physicalCores int
 
@@ -23,9 +25,6 @@ type SystemBaseInfo struct {
 func NewSystemBaseInfo(cfg config.Config) (*SystemBaseInfo, error) {
 	sysInfo := new(SystemBaseInfo)
 
-	sysInfo.osName = runtime.GOOS
-	sysInfo.osArch = runtime.GOARCH
-
 	err := sysInfo.initSystemInfo(cfg)
 	if err != nil {
 		return nil, err
@@ -34,30 +33,44 @@ func NewSystemBaseInfo(cfg config.Config) (*SystemBaseInfo, error) {
 	return sysInfo, nil
 }
 
-func (sysInfo *SystemBaseInfo) initSystemInfo(cfg config.Config) error {
-	virtualMemory, errVM := mem.VirtualMemory()
-	if errVM != nil {
-		return errVM
+func (sysBaseInfo *SystemBaseInfo) initSystemInfo(cfg config.Config) error {
+	hostInfo, errHost := host.Info()
+	if errHost != nil {
+		return errHost
 	}
-	sysInfo.totalRam = virtualMemory.Total
+	sysBaseInfo.platform = hostInfo.Platform
+	sysBaseInfo.PlatformFamily = hostInfo.PlatformFamily
+	sysBaseInfo.PlatformVersion = hostInfo.PlatformVersion
 
+	cpuInfo, errCPU := cpu.Info()
+	if errCPU != nil {
+		return errCPU
+	}
+	sysBaseInfo.cpuModelName = cpuInfo[0].ModelName
 	physicalCores, errPC := cpu.Counts(false)
+
 	if errPC != nil {
 		return errPC
 	}
-	sysInfo.physicalCores = physicalCores
+	sysBaseInfo.physicalCores = physicalCores
 
 	logicalCores, errLC := cpu.Counts(true)
 	if errLC != nil {
 		return errLC
 	}
-	sysInfo.logicalCores = logicalCores
+	sysBaseInfo.logicalCores = logicalCores
+
+	virtualMemory, errVM := mem.VirtualMemory()
+	if errVM != nil {
+		return errVM
+	}
+	sysBaseInfo.totalRam = virtualMemory.Total
 
 	diskInfo, errDI := disk.Usage(cfg.DockerContainerPath)
 	if errDI != nil {
 		return errDI
 	}
-	sysInfo.totalDisk = diskInfo.Total
+	sysBaseInfo.totalDisk = diskInfo.Total
 
 	return nil
 }

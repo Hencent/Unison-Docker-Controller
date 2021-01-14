@@ -11,6 +11,8 @@ func main() {
 
 	sysInfo, _ := pkg.NewDockerController(config.Config{
 		DockerContainerPath: "/home/penguincat/sundry",
+		DiskReserve:         0,
+		RamReserve:          5,
 	})
 
 	fmt.Println(sysInfo)
