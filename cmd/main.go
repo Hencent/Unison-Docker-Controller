@@ -1,7 +1,8 @@
 package main
 
 import (
-	"Unison-Docker-Controller/internal/config"
+	"Unison-Docker-Controller/api/types/config"
+	"Unison-Docker-Controller/api/types/container"
 	"fmt"
 )
 import "Unison-Docker-Controller/pkg"
@@ -9,13 +10,22 @@ import "Unison-Docker-Controller/pkg"
 func main() {
 	fmt.Println("UDC: Starting UDC...")
 
-	sysInfo, _ := pkg.NewDockerController(config.Config{
+	ctr, _ := pkg.NewDockerController(config.Config{
 		DockerContainerPath: "/home/penguincat/sundry",
 		DiskReserve:         0,
 		RamReserve:          5,
 	})
 
-	fmt.Println(sysInfo)
-	fmt.Println(sysInfo.SysBaseInfo)
-	fmt.Println(sysInfo.SysDynamicInfo)
+	fmt.Println(ctr)
+	fmt.Println(ctr.SysBaseInfo)
+	fmt.Println(ctr.SysDynamicInfo)
+
+	cID, err := ctr.ContainerCreat(container.ContainerConfig{
+		ImageName:     "penguincat/env:PYTORCH1.6",
+		CoreCnt:       0,
+		RamAmount:     0,
+		DiskAmount:    0,
+		ContainerName: "pcat",
+	})
+	fmt.Println(cID, err)
 }

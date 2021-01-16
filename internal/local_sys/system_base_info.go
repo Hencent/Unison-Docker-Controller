@@ -1,7 +1,7 @@
 package local_sys
 
 import (
-	"Unison-Docker-Controller/internal/config"
+	"Unison-Docker-Controller/api/types/config"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"

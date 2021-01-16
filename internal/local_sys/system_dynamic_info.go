@@ -1,17 +1,17 @@
 package local_sys
 
 import (
-	"Unison-Docker-Controller/internal/config"
-	"github.com/shirou/gopsutil/cpu"
+	"Unison-Docker-Controller/api/types/config"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
-	"time"
 )
 
 type SystemDynamicInfo struct {
-	availableRam  uint64
-	coreLoad      []float64
-	availableDisk uint64
+	AvailableRam uint64
+	//CoreLoad      []float64
+	AvailableDisk uint64
+
+	AvailableCore []int
 }
 
 func NewSystemDynamicInfo(cfg config.Config) (*SystemDynamicInfo, error) {
@@ -30,30 +30,30 @@ func (sysDynamicInfo *SystemDynamicInfo) UpdateStatus(cfg config.Config) error {
 	if errVM != nil {
 		return errVM
 	}
-	sysDynamicInfo.availableRam = virtualMemory.Available
+	sysDynamicInfo.AvailableRam = virtualMemory.Available
 	ramReserve := virtualMemory.Total * cfg.RamReserve / 100
-	if sysDynamicInfo.availableRam > ramReserve {
-		sysDynamicInfo.availableRam -= ramReserve
+	if sysDynamicInfo.AvailableRam > ramReserve {
+		sysDynamicInfo.AvailableRam -= ramReserve
 	} else {
-		sysDynamicInfo.availableRam = 0
+		sysDynamicInfo.AvailableRam = 0
 	}
 
-	coreLoad, errCL := cpu.Percent(time.Millisecond, true)
-	if errCL != nil {
-		return errCL
-	}
-	sysDynamicInfo.coreLoad = coreLoad
+	//coreLoad, errCL := cpu.Percent(time.Millisecond, true)
+	//if errCL != nil {
+	//	return errCL
+	//}
+	//sysDynamicInfo.CoreLoad = coreLoad
 
 	diskInfo, errDI := disk.Usage(cfg.DockerContainerPath)
 	if errDI != nil {
 		return errDI
 	}
-	sysDynamicInfo.availableDisk = diskInfo.Free
+	sysDynamicInfo.AvailableDisk = diskInfo.Free
 	diskReserve := diskInfo.Total * cfg.DiskReserve / 100
-	if sysDynamicInfo.availableDisk > diskReserve {
-		sysDynamicInfo.availableDisk -= diskReserve
+	if sysDynamicInfo.AvailableDisk > diskReserve {
+		sysDynamicInfo.AvailableDisk -= diskReserve
 	} else {
-		sysDynamicInfo.availableDisk = 0
+		sysDynamicInfo.AvailableDisk = 0
 	}
 
 	return nil
