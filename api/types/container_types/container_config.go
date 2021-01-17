@@ -1,4 +1,4 @@
-package container
+package container_types
 
 type ContainerConfig struct {
 	ImageName string
@@ -8,9 +8,11 @@ type ContainerConfig struct {
 
 	Volumes []string
 
-	CoreCnt    int
-	RamAmount  uint64
-	DiskAmount uint64
+	CoreCnt int
+	// max memory usage, in bytes
+	RamAmount int64
+	// max disk usage, by bytes
+	DiskAmount int64
 
 	ContainerName string
 }
