@@ -9,7 +9,10 @@ import (
 	"errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
+	"path"
 )
 
 type DockerController struct {
@@ -25,19 +28,24 @@ type DockerController struct {
 func NewDockerController(cfg config_types.Config) (*DockerController, error) {
 	// TODO 如何处理现有的其余 docker container
 
-	sysBaseInfo, errSBI := local_sys.NewSystemBaseInfo(cfg)
+	dockerClient, errCli := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if errCli != nil {
+		return nil, errCli
+	}
+
+	dockerRootDir, errDir := getDockerRootDir(dockerClient)
+	if errDir != nil {
+		return nil, errDir
+	}
+
+	sysBaseInfo, errSBI := local_sys.NewSystemBaseInfo(dockerRootDir)
 	if errSBI != nil {
 		return nil, errSBI
 	}
 
-	sysDynamicInfo, errSDI := local_sys.NewSystemResource(cfg, sysBaseInfo.LogicalCores)
+	sysDynamicInfo, errSDI := local_sys.NewSystemResource(cfg, sysBaseInfo.LogicalCores, dockerRootDir)
 	if errSDI != nil {
 		return nil, errSDI
-	}
-
-	dockerClient, errCli := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if errCli != nil {
-		return nil, errCli
 	}
 
 	c := &DockerController{
@@ -95,13 +103,24 @@ func (ctr *DockerController) ContainerCreat(cfg container_types.ContainerConfig)
 		return "", errExports
 	}
 
+	mountInfo := make([]mount.Mount, len(cfg.Volumes))
+	for k, v := range cfg.Volumes {
+		mountInfo[k] = mount.Mount{
+			Type:   "volume",
+			Source: v,
+			Target: path.Join("/volume", v),
+		}
+	}
+
 	resp, err := ctr.cli.ContainerCreate(context.Background(),
 		&container.Config{
 			Image:        cfg.ImageName,
 			ExposedPorts: exports,
 			Tty:          true,
 			StopTimeout:  &ctr.Config.ContainerStopTimeout,
-		}, nil, nil, nil, cfg.ContainerName)
+		}, &container.HostConfig{
+			Mounts: mountInfo,
+		}, nil, nil, cfg.ContainerName)
 
 	if err != nil {
 		return "", err
@@ -153,19 +172,34 @@ func (ctr *DockerController) ContainerStop(containerID string) error {
 	return nil
 }
 
-//statusCh, errCh := ctr.cli.ContainerWait(context.Background(), resp.ID, container.WaitConditionNotRunning)
-//select {
-//case err := <-errCh:
-//if err != nil {
-//panic(err)
-//}
-//case info := <-statusCh:
-//print(info)
-//}
-//
-//out, err := ctr.cli.ContainerLogs(context.Background(), resp.ID, types.ContainerLogsOptions{ShowStdout: true})
-//if err != nil {
-//panic(err)
-//}
-//
-//_, _ = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
+func (ctr *DockerController) ContainerRemove(containerID string) error {
+	err := ctr.cli.ContainerRemove(context.Background(), containerID, types.ContainerRemoveOptions{
+		RemoveVolumes: true,
+		Force:         true,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ctr *DockerController) VolumeCreate(volumeName string) error {
+	_, err := ctr.cli.VolumeCreate(context.Background(), volume.VolumeCreateBody{
+		Name: volumeName,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ctr *DockerController) VolumeRemove(volumeName string, force bool) error {
+	err := ctr.cli.VolumeRemove(context.Background(), volumeName, force)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

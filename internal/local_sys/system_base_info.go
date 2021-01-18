@@ -1,7 +1,6 @@
 package local_sys
 
 import (
-	"Unison-Docker-Controller/api/types/config_types"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
@@ -22,10 +21,10 @@ type SystemBaseInfo struct {
 	TotalDisk uint64
 }
 
-func NewSystemBaseInfo(cfg config_types.Config) (*SystemBaseInfo, error) {
+func NewSystemBaseInfo(dockerRootDIr string) (*SystemBaseInfo, error) {
 	sysInfo := new(SystemBaseInfo)
 
-	err := sysInfo.initSystemInfo(cfg)
+	err := sysInfo.initSystemInfo(dockerRootDIr)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +32,7 @@ func NewSystemBaseInfo(cfg config_types.Config) (*SystemBaseInfo, error) {
 	return sysInfo, nil
 }
 
-func (sysBaseInfo *SystemBaseInfo) initSystemInfo(cfg config_types.Config) error {
+func (sysBaseInfo *SystemBaseInfo) initSystemInfo(dockerRootDIr string) error {
 	hostInfo, errHost := host.Info()
 	if errHost != nil {
 		return errHost
@@ -66,7 +65,7 @@ func (sysBaseInfo *SystemBaseInfo) initSystemInfo(cfg config_types.Config) error
 	}
 	sysBaseInfo.TotalRam = virtualMemory.Total
 
-	diskInfo, errDI := disk.Usage(cfg.DockerContainerPath)
+	diskInfo, errDI := disk.Usage(dockerRootDIr)
 	if errDI != nil {
 		return errDI
 	}

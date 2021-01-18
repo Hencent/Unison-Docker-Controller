@@ -23,13 +23,13 @@ type SystemResource struct {
 	availableCoreCnt int
 }
 
-func NewSystemResource(cfg config_types.Config, totalCoreCnt int) (*SystemResource, error) {
+func NewSystemResource(cfg config_types.Config, totalCoreCnt int, dockerRootDir string) (*SystemResource, error) {
 	ramLimit, errRam := getRamLimit(cfg.RamReserveRatio)
 	if errRam != nil {
 		return nil, errRam
 	}
 
-	diskLimit, errDisk := getDiskLimit(cfg.DockerContainerPath, cfg.DiskReserveRatio)
+	diskLimit, errDisk := getDiskLimit(dockerRootDir, cfg.DiskReserveRatio)
 	if errDisk != nil {
 		return nil, errDisk
 	}
@@ -37,7 +37,7 @@ func NewSystemResource(cfg config_types.Config, totalCoreCnt int) (*SystemResour
 	sysInfo := &SystemResource{
 		ramLimit:            ramLimit,
 		ramAllocated:        0,
-		dockerContainerPath: cfg.DockerContainerPath,
+		dockerContainerPath: dockerRootDir,
 		diskLimit:           diskLimit,
 		diskAllocated:       0,
 	}
