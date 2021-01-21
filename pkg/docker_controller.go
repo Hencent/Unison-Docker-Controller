@@ -3,6 +3,7 @@ package pkg
 import (
 	"Unison-Docker-Controller/api/types/config_types"
 	"Unison-Docker-Controller/api/types/container_types"
+	"Unison-Docker-Controller/api/types/local_sys_types"
 	"Unison-Docker-Controller/internal/container_internal"
 	"Unison-Docker-Controller/internal/local_sys"
 	"context"
@@ -17,8 +18,8 @@ import (
 
 type DockerController struct {
 	Config      config_types.Config
-	SysBaseInfo *local_sys.SystemBaseInfo
-	SysResource *local_sys.SystemResource
+	SysBaseInfo *local_sys_types.SystemBaseInfo
+	SysResource *local_sys.SystemResourceController
 
 	CCB map[string]*container_internal.ContainerControlBlock `json:"container control block"`
 
@@ -38,12 +39,12 @@ func NewDockerController(cfg config_types.Config) (*DockerController, error) {
 		return nil, errDir
 	}
 
-	sysBaseInfo, errSBI := local_sys.NewSystemBaseInfo(dockerRootDir)
+	sysBaseInfo, errSBI := local_sys_types.NewSystemBaseInfo(dockerRootDir)
 	if errSBI != nil {
 		return nil, errSBI
 	}
 
-	sysDynamicInfo, errSDI := local_sys.NewSystemResource(cfg, sysBaseInfo.LogicalCores, dockerRootDir)
+	sysResource, errSDI := local_sys.NewSystemResourceController(cfg, sysBaseInfo.LogicalCores, dockerRootDir)
 	if errSDI != nil {
 		return nil, errSDI
 	}
@@ -51,7 +52,7 @@ func NewDockerController(cfg config_types.Config) (*DockerController, error) {
 	c := &DockerController{
 		Config:      cfg,
 		SysBaseInfo: sysBaseInfo,
-		SysResource: sysDynamicInfo,
+		SysResource: sysResource,
 		CCB:         make(map[string]*container_internal.ContainerControlBlock),
 		cli:         dockerClient,
 	}
@@ -202,4 +203,8 @@ func (ctr *DockerController) VolumeRemove(volumeName string, force bool) error {
 	}
 
 	return nil
+}
+
+func (ctr *DockerController) SystemBaseInfo() local_sys_types.SystemBaseInfo {
+	return *ctr.SysBaseInfo
 }

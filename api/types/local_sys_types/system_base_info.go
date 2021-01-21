@@ -1,4 +1,4 @@
-package local_sys
+package local_sys_types
 
 import (
 	"github.com/shirou/gopsutil/cpu"
@@ -18,6 +18,7 @@ type SystemBaseInfo struct {
 	LogicalCores  int
 	PhysicalCores int
 
+	// 可能没有意义，后期考虑去掉。 or 换算成整台机器的所有硬盘容量（无论是否被其他进程占用了，反应整体机器配置，似乎更合理一点）
 	TotalDisk uint64
 }
 

@@ -2,6 +2,7 @@ package local_sys
 
 import (
 	"Unison-Docker-Controller/api/types/config_types"
+	"Unison-Docker-Controller/api/types/local_sys_types"
 	"errors"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
@@ -11,19 +12,13 @@ import (
 var coreDistributeLock sync.Mutex
 var ramDistributeLock sync.Mutex
 
-type SystemResource struct {
-	ramLimit     uint64
-	ramAllocated uint64
+// TODO 修改 system resource 的形式：资源用量、剩余等
 
-	dockerContainerPath string
-	diskLimit           uint64
-	diskAllocated       uint64
-
-	availableCore    []bool
-	availableCoreCnt int
+type SystemResourceController struct {
+	local_sys_types.SystemResource
 }
 
-func NewSystemResource(cfg config_types.Config, totalCoreCnt int, dockerRootDir string) (*SystemResource, error) {
+func NewSystemResourceController(cfg config_types.Config, totalCoreCnt int, dockerRootDir string) (*SystemResourceController, error) {
 	ramLimit, errRam := getRamLimit(cfg.RamReserveRatio)
 	if errRam != nil {
 		return nil, errRam
@@ -34,21 +29,23 @@ func NewSystemResource(cfg config_types.Config, totalCoreCnt int, dockerRootDir 
 		return nil, errDisk
 	}
 
-	sysInfo := &SystemResource{
-		ramLimit:            ramLimit,
-		ramAllocated:        0,
-		dockerContainerPath: dockerRootDir,
-		diskLimit:           diskLimit,
-		diskAllocated:       0,
+	sysResource := &SystemResourceController{
+		local_sys_types.SystemResource{
+			RamAllocated:        0,
+			RamLimit:            ramLimit,
+			DockerContainerPath: dockerRootDir,
+			DiskAllocated:       0,
+			DiskLimit:           diskLimit,
+		},
 	}
 
-	sysInfo.availableCoreCnt = totalCoreCnt
-	sysInfo.availableCore = make([]bool, totalCoreCnt)
-	for k := range sysInfo.availableCore {
-		sysInfo.availableCore[k] = true
+	sysResource.AvailableCoreCnt = totalCoreCnt
+	sysResource.AvailableCore = make([]bool, totalCoreCnt)
+	for k := range sysResource.AvailableCore {
+		sysResource.AvailableCore[k] = true
 	}
 
-	return sysInfo, nil
+	return sysResource, nil
 }
 
 func getRamLimit(ramReserveRatio uint64) (uint64, error) {
@@ -69,7 +66,7 @@ func getDiskLimit(dockerContainerPath string, diskReserveRatio uint64) (uint64, 
 	return diskInfo.Total * (100 - diskReserveRatio) / 100, nil
 }
 
-func (SystemResource *SystemResource) getRamAvailable() uint64 {
+func (SystemResource *SystemResourceController) getRamAvailable() uint64 {
 	virtualMemory, errVM := mem.VirtualMemory()
 	if errVM != nil {
 		return 0
@@ -77,26 +74,26 @@ func (SystemResource *SystemResource) getRamAvailable() uint64 {
 	return virtualMemory.Available
 }
 
-func (SystemResource *SystemResource) getDiskAvailable() uint64 {
-	diskInfo, errDI := disk.Usage(SystemResource.dockerContainerPath)
+func (SystemResource *SystemResourceController) getDiskAvailable() uint64 {
+	diskInfo, errDI := disk.Usage(SystemResource.DockerContainerPath)
 	if errDI != nil {
 		return 0
 	}
 	return diskInfo.Free
 }
 
-func (SystemResource *SystemResource) CoreRequest(cnt int) ([]int, error) {
+func (SystemResource *SystemResourceController) CoreRequest(cnt int) ([]int, error) {
 	coreDistributeLock.Lock()
 	defer coreDistributeLock.Unlock()
 
-	if cnt > SystemResource.availableCoreCnt {
+	if cnt > SystemResource.AvailableCoreCnt {
 		return nil, errors.New("not enough empty cores")
 	}
 
 	cores := make([]int, cnt)
 
 	disCnt := 0
-	for k, v := range SystemResource.availableCore {
+	for k, v := range SystemResource.AvailableCore {
 		if disCnt >= cnt {
 			break
 		}
@@ -109,22 +106,22 @@ func (SystemResource *SystemResource) CoreRequest(cnt int) ([]int, error) {
 	return cores, nil
 }
 
-func (SystemResource *SystemResource) CoreRelease(cores []int) {
+func (SystemResource *SystemResourceController) CoreRelease(cores []int) {
 	coreDistributeLock.Lock()
 	defer coreDistributeLock.Unlock()
 
 	cnt := 0
 	for v := range cores {
-		if SystemResource.availableCore[v] == false {
+		if SystemResource.AvailableCore[v] == false {
 			cnt++
-			SystemResource.availableCore[v] = true
+			SystemResource.AvailableCore[v] = true
 		}
 	}
 
-	SystemResource.availableCoreCnt += cnt
+	SystemResource.AvailableCoreCnt += cnt
 }
 
-func (SystemResource *SystemResource) RamRequest(amount uint64) error {
+func (SystemResource *SystemResourceController) RamRequest(amount uint64) error {
 	if amount > SystemResource.getRamAvailable() {
 		return errors.New("not enough memory")
 	}
@@ -132,21 +129,29 @@ func (SystemResource *SystemResource) RamRequest(amount uint64) error {
 	ramDistributeLock.Lock()
 	defer ramDistributeLock.Unlock()
 
-	if amount+SystemResource.ramAllocated > SystemResource.ramLimit {
+	if amount+SystemResource.RamAllocated > SystemResource.RamLimit {
 		return errors.New("not enough memory")
 	}
 
-	SystemResource.ramAllocated += amount
+	SystemResource.RamAllocated += amount
 	return nil
 }
 
-func (SystemResource *SystemResource) RamRelease(amount uint64) {
+func (SystemResource *SystemResourceController) RamRelease(amount uint64) {
 	ramDistributeLock.Lock()
 	defer ramDistributeLock.Unlock()
 
-	if amount > SystemResource.ramAllocated {
-		SystemResource.ramAllocated = 0
+	if amount > SystemResource.RamAllocated {
+		SystemResource.RamAllocated = 0
 	} else {
-		SystemResource.ramAllocated -= amount
+		SystemResource.RamAllocated -= amount
+	}
+}
+
+func (SystemResource *SystemResourceController) GetResourceAvailable() local_sys_types.SystemResourceAvailable {
+	return local_sys_types.SystemResourceAvailable{
+		AvailableRam:     SystemResource.RamLimit - SystemResource.RamAllocated,
+		AvailableDisk:    SystemResource.DiskLimit - SystemResource.DiskAllocated,
+		AvailableCoreCnt: SystemResource.AvailableCoreCnt,
 	}
 }
