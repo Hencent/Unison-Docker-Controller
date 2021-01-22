@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"strconv"
@@ -30,9 +31,10 @@ func generateExportsForContainer(tcpList []int, udpList []int) (nat.PortSet, err
 func generateCoreListStringWithIntList(vList []int) string {
 	resp := ""
 	for v := range vList {
-		resp += strconv.Itoa(v)
+		resp += "," + strconv.Itoa(v)
 	}
-	return resp
+
+	return resp[1:]
 }
 
 func (ctr *DockerController) containerRequestResource(containerID string) error {
@@ -84,4 +86,28 @@ func (ctr *DockerController) containerReleaseResource(containerID string) {
 func (ctr *DockerController) containerUpdateStatus(containerID string) {
 	status := ctr.ContainerGetStatus(containerID)
 	ctr.CCB[containerID].Status = status
+}
+
+func calculateCPUPercentUnix(v *types.StatsJSON) float64 {
+	// 参考自
+	// https://github.com/docker/cli/blob/902e9fa22bb7f591132ea52f333e6804eb0d46b6/cli/command/container/stats_helpers.go#L166
+
+	previousCPU := v.PreCPUStats.CPUUsage.TotalUsage
+	previousSystem := v.PreCPUStats.SystemUsage
+	var (
+		cpuPercent = 0.0
+		// calculate the change for the cpu usage of the container in between readings
+		cpuDelta = float64(v.CPUStats.CPUUsage.TotalUsage) - float64(previousCPU)
+		// calculate the change for the entire system between readings
+		systemDelta = float64(v.CPUStats.SystemUsage) - float64(previousSystem)
+		onlineCPUs  = float64(v.CPUStats.OnlineCPUs)
+	)
+
+	if onlineCPUs == 0.0 {
+		onlineCPUs = float64(len(v.CPUStats.CPUUsage.PercpuUsage))
+	}
+	if systemDelta > 0.0 && cpuDelta > 0.0 {
+		cpuPercent = (cpuDelta / systemDelta) * onlineCPUs * 100.0
+	}
+	return cpuPercent
 }

@@ -7,6 +7,7 @@ import (
 	"Unison-Docker-Controller/internal/container_internal"
 	"Unison-Docker-Controller/internal/local_sys"
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -185,6 +186,29 @@ func (ctr *DockerController) ContainerRemove(containerID string) error {
 	return nil
 }
 
+func (ctr *DockerController) ContainerStats(containerID string) (*container_types.ContainerStats, error) {
+	// 参考自
+	// https://github.com/docker/cli/blob/902e9fa22bb7f591132ea52f333e6804eb0d46b6/cli/command/container/stats_helpers.go#L116
+
+	resp, err := ctr.cli.ContainerStats(context.Background(), containerID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	dec := json.NewDecoder(resp.Body)
+	var v *types.StatsJSON
+	errJSON := dec.Decode(&v)
+	if errJSON != nil {
+		return nil, errJSON
+	}
+
+	stats := &container_types.ContainerStats{
+		Memory: v.Stats.MemoryStats.Usage - v.Stats.MemoryStats.Stats["cache"],
+		CPU:    calculateCPUPercentUnix(v),
+	}
+	return stats, nil
+}
+
 func (ctr *DockerController) VolumeCreate(volumeName string) error {
 	_, err := ctr.cli.VolumeCreate(context.Background(), volume.VolumeCreateBody{
 		Name: volumeName,
@@ -207,4 +231,8 @@ func (ctr *DockerController) VolumeRemove(volumeName string, force bool) error {
 
 func (ctr *DockerController) SystemBaseInfo() local_sys_types.SystemBaseInfo {
 	return *ctr.SysBaseInfo
+}
+
+func (ctr *DockerController) SystemResource() local_sys_types.SystemResourceAvailable {
+	return ctr.SysResource.GetResourceAvailable()
 }

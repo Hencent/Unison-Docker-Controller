@@ -10,8 +10,6 @@ import "Unison-Docker-Controller/pkg"
 func main() {
 	fmt.Println("UDC: Starting UDC...")
 
-	volumes := []string{"zhangbinjie", "tdd"}
-
 	ctr, _ := pkg.NewDockerController(config_types.Config{
 		DiskReserveRatio:     0,
 		RamReserveRatio:      5,
@@ -22,6 +20,7 @@ func main() {
 	fmt.Println(ctr.SysBaseInfo)
 	fmt.Println(ctr.SysResource)
 
+	volumes := []string{"zhangbinjie", "tdd"}
 	_ = ctr.VolumeCreate("zhangbinjie")
 	_ = ctr.VolumeCreate("tdd")
 
@@ -37,6 +36,12 @@ func main() {
 
 	err2 := ctr.ContainerStart(cID)
 	fmt.Println(err2)
+
+	//cID := "0dd144293cc4"
+
+	stat, _ := ctr.ContainerStats(cID)
+	memUsage := stat.Memory / 1024 / 1024
+	fmt.Println(memUsage)
 
 	err3 := ctr.ContainerStop(cID)
 	fmt.Println(err3)
