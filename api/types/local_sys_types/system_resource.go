@@ -4,9 +4,8 @@ type SystemResource struct {
 	RamLimit     uint64
 	RamAllocated uint64
 
-	DockerContainerPath string
-	DiskLimit           uint64
-	DiskAllocated       uint64
+	DiskLimit     uint64
+	DiskAllocated uint64
 
 	AvailableCore    []bool
 	AvailableCoreCnt int

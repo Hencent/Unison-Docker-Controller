@@ -28,7 +28,7 @@ type DockerController struct {
 }
 
 func NewDockerController(cfg config_types.Config) (*DockerController, error) {
-	// TODO 如何处理现有的其余 docker container
+	// TODO 如何处理现有的其余 docker container --> 停止并删除任何已有的 docker container
 
 	dockerClient, errCli := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if errCli != nil {
@@ -142,6 +142,11 @@ func (ctr *DockerController) ContainerStart(containerID string) error {
 		return errors.New("container not exits")
 	}
 
+	errUpdateDynamicResource := ctr.updateDynamicResource()
+	if errUpdateDynamicResource != nil {
+		return errUpdateDynamicResource
+	}
+
 	errResource := ctr.containerRequestResource(containerID)
 	if errResource != nil {
 		return errResource
@@ -209,6 +214,28 @@ func (ctr *DockerController) ContainerStats(containerID string) (*container_type
 	return stats, nil
 }
 
+func (ctr *DockerController) ContainerAllStats() ([]*container_types.ContainerStats, error) {
+	containerList, errList := ctr.cli.ContainerList(context.Background(), types.ContainerListOptions{
+		// 未开可能有用
+		// https://docs.docker.com/engine/api/v1.41/#tag/Container
+		Size: true,
+		All:  true,
+	})
+	if errList != nil {
+		return nil, errList
+	}
+
+	resp := make([]*container_types.ContainerStats, len(containerList))
+	for i := 0; i < len(containerList); i++ {
+		r, errStats := ctr.ContainerStats(containerList[i].ID)
+		if errStats != nil {
+			return nil, errStats
+		}
+		resp[i] = r
+	}
+	return resp, nil
+}
+
 func (ctr *DockerController) VolumeCreate(volumeName string) error {
 	_, err := ctr.cli.VolumeCreate(context.Background(), volume.VolumeCreateBody{
 		Name: volumeName,
@@ -229,10 +256,15 @@ func (ctr *DockerController) VolumeRemove(volumeName string, force bool) error {
 	return nil
 }
 
-func (ctr *DockerController) SystemBaseInfo() local_sys_types.SystemBaseInfo {
-	return *ctr.SysBaseInfo
+func (ctr *DockerController) SystemBaseInfo() *local_sys_types.SystemBaseInfo {
+	return ctr.SysBaseInfo
 }
 
-func (ctr *DockerController) SystemResource() local_sys_types.SystemResourceAvailable {
-	return ctr.SysResource.GetResourceAvailable()
+func (ctr *DockerController) SystemResource() (*local_sys_types.SystemResourceAvailable, error) {
+	err := ctr.updateDynamicResource()
+	if err != nil {
+		return nil, err
+	}
+
+	return ctr.SysResource.GetResourceAvailable(), nil
 }

@@ -7,6 +7,10 @@ UDC is an integral part of UMLCP (Unison Machine Learning Cloud Platform).
 
 **衡 · Docker 控制器** 是 **衡 · 机器学习云平台** 的组成部分。
 
+# Special Notes
++ The host **must not** run other docker containers. Otherwise, other containers will be deleted.
++ It is **not recommended** to run with other programs to avoid affecting the resources obtained by the container.
+
 # Licensing
 UDC is licensed under the MIT License. See
 [LICENSE](https://github.com/Hencent/Unison-Docker-Controller/blob/main/LICENSE) for the full

@@ -1,7 +1,6 @@
 package config_types
 
 type Config struct {
-	//DockerContainerPath string
 	//docker 容器存储路径下，保留的磁盘百分比 (0-100)
 	DiskReserveRatio uint64
 
