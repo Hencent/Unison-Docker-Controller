@@ -13,6 +13,7 @@ func main() {
 	ctr, errController := pkg.NewDockerController(config_types.Config{
 		RamReserveRatio:      2,
 		ContainerStopTimeout: 5,
+		PeriodicTaskInterval: 10,
 	})
 	fmt.Println(errController)
 

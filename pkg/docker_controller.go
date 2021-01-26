@@ -136,6 +136,8 @@ func (ctr *DockerController) ContainerCreat(cfg container_types.ContainerConfig)
 		Config: cfg,
 	}
 
+	ctr.beginPeriodicTask(ctr.Config.PeriodicTaskInterval)
+
 	ctr.containerUpdateStatus(resp.ID)
 	return resp.ID, nil
 }
