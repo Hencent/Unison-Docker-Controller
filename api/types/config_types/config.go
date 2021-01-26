@@ -8,5 +8,5 @@ type Config struct {
 	ContainerStopTimeout int
 
 	// 周期性任务执行间隔 by second
-	PeriodicTaskInterval int
+	PeriodicSystemStatsUpdateInterval int
 }

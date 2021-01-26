@@ -136,7 +136,7 @@ func (ctr *DockerController) ContainerCreat(cfg container_types.ContainerConfig)
 		Config: cfg,
 	}
 
-	ctr.beginPeriodicTask(ctr.Config.PeriodicTaskInterval)
+	ctr.beginPeriodicTask()
 
 	ctr.containerUpdateStatus(resp.ID)
 	return resp.ID, nil
@@ -247,19 +247,4 @@ func (ctr *DockerController) SystemResource() (*local_sys_types.SystemResourceAv
 	}
 
 	return ctr.SysResource.GetResourceAvailable(), nil
-}
-
-// 周期性调度执行
-func (ctr *DockerController) SystemStatsUpdate() error {
-	errUsage := ctr.containerUpdateAllResourceUsage()
-	if errUsage != nil {
-		return errUsage
-	}
-
-	errResource := ctr.updateDynamicResource()
-	if errResource != nil {
-		return errResource
-	}
-
-	return nil
 }
