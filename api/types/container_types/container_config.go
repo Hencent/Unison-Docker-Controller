@@ -11,8 +11,6 @@ type ContainerConfig struct {
 	CoreCnt int
 	// max memory usage, in bytes
 	RamAmount int64
-	// max disk usage, by bytes
-	DiskAmount int64
 
 	ContainerName string
 }

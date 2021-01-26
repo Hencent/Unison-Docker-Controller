@@ -4,8 +4,7 @@ type SystemResource struct {
 	RamLimit     uint64
 	RamAllocated uint64
 
-	DiskLimit     uint64
-	DiskAllocated uint64
+	AvailableDisk uint64
 
 	AvailableCore    []bool
 	AvailableCoreCnt int

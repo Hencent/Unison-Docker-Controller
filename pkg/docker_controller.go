@@ -7,7 +7,6 @@ import (
 	"Unison-Docker-Controller/internal/container_internal"
 	"Unison-Docker-Controller/internal/local_sys"
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -18,11 +17,14 @@ import (
 )
 
 type DockerController struct {
-	Config      config_types.Config
+	Config config_types.Config
+
 	SysBaseInfo *local_sys_types.SystemBaseInfo
 	SysResource *local_sys.SystemResourceController
 
 	CCB map[string]*container_internal.ContainerControlBlock `json:"container control block"`
+
+	// TODO Volume control block
 
 	cli *client.Client
 }
@@ -121,7 +123,8 @@ func (ctr *DockerController) ContainerCreat(cfg container_types.ContainerConfig)
 			Tty:          true,
 			StopTimeout:  &ctr.Config.ContainerStopTimeout,
 		}, &container.HostConfig{
-			Mounts: mountInfo,
+			Mounts:     mountInfo,
+			StorageOpt: map[string]string{},
 		}, nil, nil, cfg.ContainerName)
 
 	if err != nil {
@@ -180,6 +183,10 @@ func (ctr *DockerController) ContainerStop(containerID string) error {
 }
 
 func (ctr *DockerController) ContainerRemove(containerID string) error {
+	if !ctr.ContainerIsExist(containerID) {
+		return errors.New("container not exits")
+	}
+
 	err := ctr.cli.ContainerRemove(context.Background(), containerID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		Force:         true,
@@ -191,49 +198,20 @@ func (ctr *DockerController) ContainerRemove(containerID string) error {
 	return nil
 }
 
-func (ctr *DockerController) ContainerStats(containerID string) (*container_types.ContainerStats, error) {
-	// 参考自
-	// https://github.com/docker/cli/blob/902e9fa22bb7f591132ea52f333e6804eb0d46b6/cli/command/container/stats_helpers.go#L116
-
-	resp, err := ctr.cli.ContainerStats(context.Background(), containerID, false)
-	if err != nil {
-		return nil, err
+func (ctr *DockerController) ContainerResourceUsage(containerID string) (*container_types.ContainerResourceUsage, error) {
+	if !ctr.ContainerIsExist(containerID) {
+		return nil, errors.New("container not exits")
 	}
 
-	dec := json.NewDecoder(resp.Body)
-	var v *types.StatsJSON
-	errJSON := dec.Decode(&v)
-	if errJSON != nil {
-		return nil, errJSON
-	}
-
-	stats := &container_types.ContainerStats{
-		Memory: v.Stats.MemoryStats.Usage - v.Stats.MemoryStats.Stats["cache"],
-		CPU:    calculateCPUPercentUnix(v),
-	}
-	return stats, nil
+	return &ctr.CCB[containerID].ResourceUsage, nil
 }
 
-func (ctr *DockerController) ContainerAllStats() ([]*container_types.ContainerStats, error) {
-	containerList, errList := ctr.cli.ContainerList(context.Background(), types.ContainerListOptions{
-		// 未开可能有用
-		// https://docs.docker.com/engine/api/v1.41/#tag/Container
-		Size: true,
-		All:  true,
-	})
-	if errList != nil {
-		return nil, errList
+func (ctr *DockerController) ContainerAllResourceUsage() map[string]*container_types.ContainerResourceUsage {
+	usage := make(map[string]*container_types.ContainerResourceUsage)
+	for k, v := range ctr.CCB {
+		usage[k] = &v.ResourceUsage
 	}
-
-	resp := make([]*container_types.ContainerStats, len(containerList))
-	for i := 0; i < len(containerList); i++ {
-		r, errStats := ctr.ContainerStats(containerList[i].ID)
-		if errStats != nil {
-			return nil, errStats
-		}
-		resp[i] = r
-	}
-	return resp, nil
+	return usage
 }
 
 func (ctr *DockerController) VolumeCreate(volumeName string) error {
@@ -267,4 +245,19 @@ func (ctr *DockerController) SystemResource() (*local_sys_types.SystemResourceAv
 	}
 
 	return ctr.SysResource.GetResourceAvailable(), nil
+}
+
+// 周期性调度执行
+func (ctr *DockerController) SystemStatsUpdate() error {
+	errUsage := ctr.containerUpdateAllResourceUsage()
+	if errUsage != nil {
+		return errUsage
+	}
+
+	errResource := ctr.updateDynamicResource()
+	if errResource != nil {
+		return errResource
+	}
+
+	return nil
 }

@@ -15,12 +15,9 @@ func getDockerRootDir(client *client.Client) (string, error) {
 }
 
 func (ctr *DockerController) updateDynamicResource() error {
-	containerDynamicUsage, errStats := ctr.ContainerAllStats()
-	if errStats != nil {
-		return errStats
-	}
+	containerDynamicUsage := ctr.ContainerAllResourceUsage()
 
-	errResourceUpdate := ctr.SysResource.UpdateResourceLimit(containerDynamicUsage)
+	errResourceUpdate := ctr.SysResource.UpdateResourceStates(containerDynamicUsage)
 	if errResourceUpdate != nil {
 		return errResourceUpdate
 	}

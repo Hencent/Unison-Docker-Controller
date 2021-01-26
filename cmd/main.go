@@ -10,11 +10,11 @@ import "Unison-Docker-Controller/pkg"
 func main() {
 	fmt.Println("UDC: Starting UDC...")
 
-	ctr, _ := pkg.NewDockerController(config_types.Config{
-		DiskReserveRatio:     0,
-		RamReserveRatio:      5,
-		ContainerStopTimeout: 30,
+	ctr, errController := pkg.NewDockerController(config_types.Config{
+		RamReserveRatio:      2,
+		ContainerStopTimeout: 5,
 	})
+	fmt.Println(errController)
 
 	fmt.Println(ctr)
 	fmt.Println(ctr.SysBaseInfo)
@@ -28,7 +28,6 @@ func main() {
 		ImageName:     "penguincat/env:PYTORCH1.6",
 		CoreCnt:       2,
 		RamAmount:     524288000,
-		DiskAmount:    524288000,
 		ContainerName: "pcat",
 		Volumes:       volumes,
 	})
@@ -39,8 +38,8 @@ func main() {
 
 	//cID := "0dd144293cc4"
 
-	stat, _ := ctr.ContainerStats(cID)
-	memUsage := stat.Memory / 1024 / 1024
+	usage, _ := ctr.ContainerResourceUsage(cID)
+	memUsage := usage.Memory / 1024 / 1024
 	fmt.Println(memUsage)
 
 	err3 := ctr.ContainerStop(cID)

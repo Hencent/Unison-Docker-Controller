@@ -15,18 +15,19 @@ const (
 	Error
 )
 
-type internalResource struct {
+type internalResourceAllocated struct {
 	CoreList  []int
 	RamAmount int64
 }
 
 type ContainerControlBlock struct {
-	Status   ContainerStatus
-	Config   container_types.ContainerConfig
-	Resource internalResource
+	Status            ContainerStatus
+	Config            container_types.ContainerConfig
+	ResourceAllocated internalResourceAllocated
+	ResourceUsage     container_types.ContainerResourceUsage
 }
 
-func (ccb *ContainerControlBlock) UpdateResource(coreList []int, ramAmount int64) {
-	ccb.Resource.CoreList = coreList
-	ccb.Resource.RamAmount = ramAmount
+func (ccb *ContainerControlBlock) UpdateResourceAllocated(coreList []int, ramAmount int64) {
+	ccb.ResourceAllocated.CoreList = coreList
+	ccb.ResourceAllocated.RamAmount = ramAmount
 }
