@@ -9,4 +9,8 @@ type Config struct {
 
 	// 周期性任务执行间隔 by second
 	PeriodicSystemStatsUpdateInterval int
+
+	// 启动时对现存容易的操作
+	StopExistingContainersOnStart   bool
+	RemoveExistingContainersOnStart bool
 }

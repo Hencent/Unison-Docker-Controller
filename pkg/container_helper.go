@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"strconv"
 )
@@ -133,16 +134,48 @@ func (ctr *DockerController) containerGetSingleCPUMemUsage(containerID string) (
 	return mem, cpu, nil
 }
 
-func (ctr *DockerController) containerUpdateAllResourceUsage() error {
-	// 周期性被调度
-
-	containerList, errList := ctr.cli.ContainerList(context.Background(), types.ContainerListOptions{
+func containerList(cli *client.Client) ([]types.Container, error) {
+	containerList, errList := cli.ContainerList(context.Background(), types.ContainerListOptions{
 		// https://docs.docker.com/engine/api/v1.41/#tag/Container
 		// https://docs.docker.com/storage/storagedriver/#container-size-on-disk
 		// https://stackoverflow.com/questions/22156563/what-is-the-exact-difference-between-sizerootfs-and-sizerw-in-docker-containers
 		Size: true,
 		All:  true,
 	})
+	if errList != nil {
+		return nil, errList
+	}
+
+	return containerList, nil
+}
+
+func containerStopAndRemoveAllForInit(cli *client.Client, isStop bool, isRemove bool) {
+	// 停止和删除所有现存容器只是一个尝试，若是出错，当前（2020.2.5）来看并不是特别重要，可以忽略
+	containerList, err := containerList(cli)
+
+	if err != nil {
+		return
+	}
+
+	if isStop {
+		for _, item := range containerList {
+			_ = cli.ContainerStop(context.Background(), item.ID, nil)
+
+			if isRemove {
+				_ = cli.ContainerRemove(context.Background(), item.ID, types.ContainerRemoveOptions{
+					RemoveVolumes: true,
+					Force:         true,
+				})
+			}
+		}
+	}
+
+}
+
+func (ctr *DockerController) containerUpdateAllResourceUsage() error {
+	// 周期性被调度
+
+	containerList, errList := containerList(ctr.cli)
 	if errList != nil {
 		return errList
 	}

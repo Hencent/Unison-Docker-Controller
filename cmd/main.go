@@ -26,7 +26,7 @@ func main() {
 	_ = ctr.VolumeCreate("tdd")
 
 	cID, err1 := ctr.ContainerCreat(container_types.ContainerConfig{
-		ImageName:     "penguincat/env:PYTORCH1.6",
+		ImageName:     "ubuntu:latest",
 		CoreCnt:       2,
 		RamAmount:     524288000,
 		ContainerName: "pcat",

@@ -30,12 +30,12 @@ type DockerController struct {
 }
 
 func NewDockerController(cfg config_types.Config) (*DockerController, error) {
-	// TODO 如何处理现有的其余 docker container --> 停止并删除任何已有的 docker container
-
 	dockerClient, errCli := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if errCli != nil {
 		return nil, errCli
 	}
+
+	containerStopAndRemoveAllForInit(dockerClient, cfg.StopExistingContainersOnStart, cfg.RemoveExistingContainersOnStart)
 
 	dockerRootDir, errDir := getDockerRootDir(dockerClient)
 	if errDir != nil {
