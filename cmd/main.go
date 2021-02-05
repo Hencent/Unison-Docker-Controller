@@ -14,6 +14,8 @@ func main() {
 		RamReserveRatio:                   2,
 		ContainerStopTimeout:              5,
 		PeriodicSystemStatsUpdateInterval: 10,
+		StopExistingContainersOnStart:     true,
+		RemoveExistingContainersOnStart:   false,
 	})
 	fmt.Println(errController)
 
