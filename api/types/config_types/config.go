@@ -13,4 +13,7 @@ type Config struct {
 	// 启动时对现存容器的操作
 	StopExistingContainersOnStart   bool
 	RemoveExistingContainersOnStart bool
+
+	// 启动时对现存 Volume 的操作
+	RemoveExistingVolumesOnStart bool
 }

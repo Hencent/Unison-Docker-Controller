@@ -43,10 +43,11 @@ func NewSystemResourceController(cfg config_types.Config, totalCoreCnt int, dock
 	return sysResource, nil
 }
 
-func (SystemResource *SystemResourceController) UpdateResourceStates(usage map[string]*container_types.ContainerResourceUsage) error {
+func (SystemResource *SystemResourceController) UpdateResourceStates(containerUsage map[string]*container_types.ContainerResourceUsage) error {
+
 	containerDynamicMemUsage := uint64(0)
 
-	for _, v := range usage {
+	for _, v := range containerUsage {
 		containerDynamicMemUsage += v.Memory
 	}
 

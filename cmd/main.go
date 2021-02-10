@@ -16,6 +16,7 @@ func main() {
 		PeriodicSystemStatsUpdateInterval: 10,
 		StopExistingContainersOnStart:     true,
 		RemoveExistingContainersOnStart:   false,
+		RemoveExistingVolumesOnStart:      false,
 	})
 	fmt.Println(errController)
 

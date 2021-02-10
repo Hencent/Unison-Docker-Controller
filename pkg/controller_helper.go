@@ -16,9 +16,14 @@ func (ctr *DockerController) beginPeriodicTask() {
 
 // 周期性调度执行
 func (ctr *DockerController) systemStatsUpdate() error {
-	errUsage := ctr.containerUpdateAllResourceUsage()
-	if errUsage != nil {
-		return errUsage
+	errContainerUsage := ctr.containerUpdateAllResourceUsage()
+	if errContainerUsage != nil {
+		return errContainerUsage
+	}
+
+	errVolumeUsage := ctr.volumeUpdateAllResourceUsage()
+	if errVolumeUsage != nil {
+		return errVolumeUsage
 	}
 
 	errResource := ctr.updateDynamicResource()
