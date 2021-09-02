@@ -2,12 +2,13 @@ package controller
 
 import (
 	"context"
+	types2 "github.com/PenguinCats/Unison-Docker-Controller/api/types"
 	container2 "github.com/PenguinCats/Unison-Docker-Controller/api/types/container"
-	"github.com/PenguinCats/Unison-Docker-Controller/internal/uuid"
 	"github.com/PenguinCats/Unison-Docker-Controller/pkg/controller/internal/container-controller"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
+	"github.com/sirupsen/logrus"
 	"strconv"
 )
 
@@ -17,7 +18,8 @@ func generatePortBinding(tcpList, tcpBindingList, udpList, udpBindingList []stri
 	for idx := range tcpList {
 		port, err := nat.NewPort("tcp", tcpList[idx])
 		if err != nil {
-			return nil, nil, err
+			logrus.Warning(err.Error())
+			return nil, nil, types2.ErrInternalError
 		}
 		portBinding[port] = []nat.PortBinding{
 			{
@@ -29,7 +31,8 @@ func generatePortBinding(tcpList, tcpBindingList, udpList, udpBindingList []stri
 	for idx := range udpList {
 		port, err := nat.NewPort("udp", udpList[idx])
 		if err != nil {
-			return nil, nil, err
+			logrus.Warning(err.Error())
+			return nil, nil, types2.ErrInternalError
 		}
 		portBinding[port] = []nat.PortBinding{
 			{
@@ -88,10 +91,10 @@ func (ctr *DockerController) ContainerCreate(cb container2.ContainerCreateBody) 
 				Memory: cb.MemorySize,
 			},
 			PortBindings: portMapping,
-		}, nil, nil, uuid.GenerateRandomUUID())
+		}, nil, nil, cb.ExtContainerID)
 
 	if err != nil {
-		return "", err
+		return "", types2.ErrInternalError
 	}
 
 	defer func() {
@@ -104,6 +107,7 @@ func (ctr *DockerController) ContainerCreate(cb container2.ContainerCreateBody) 
 	}()
 
 	ccb := &container_controller.ContainerControlBlock{
+		UECContainerID:         cb.ExtContainerID,
 		ContainerID:            resp.ID,
 		ImageName:              cb.ImageName,
 		ExposedTCPPorts:        cb.ExposedTCPPorts,
@@ -115,7 +119,7 @@ func (ctr *DockerController) ContainerCreate(cb container2.ContainerCreateBody) 
 		StorageRequest:         storageSizeInt64,
 	}
 	ctr.containerCtrlBlkMutex.Lock()
-	ctr.containerCtrlBlk[resp.ID] = ccb
+	ctr.containerCtrlBlk[cb.ExtContainerID] = ccb
 	ctr.containerCtrlBlkMutex.Unlock()
 
 	return resp.ID, nil

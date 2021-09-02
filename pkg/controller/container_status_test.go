@@ -9,6 +9,7 @@ import (
 
 func TestContainerStatus(t *testing.T) {
 	dc := getDockerControllerForTest(t)
+	ExtContainerID := "123456"
 	containerID, err := dc.ContainerCreate(container.ContainerCreateBody{
 		ImageName:       "fedora",
 		ExposedTCPPorts: []string{"1001", "1002"},
@@ -17,13 +18,14 @@ func TestContainerStatus(t *testing.T) {
 		CoreCnt:         2,
 		MemorySize:      524288000,
 		StorageSize:     21474836480,
+		ExtContainerID:  ExtContainerID,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error [%s]", err.Error())
 	}
 
 	defer func() {
-		err := dc.cli.ContainerRemove(context.Background(), containerID, types.ContainerRemoveOptions{
+		err := dc.cli.ContainerRemove(context.Background(), ExtContainerID, types.ContainerRemoveOptions{
 			RemoveVolumes: true,
 			Force:         true,
 		})

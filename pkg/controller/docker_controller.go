@@ -3,7 +3,7 @@ package controller
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"github.com/PenguinCats/Unison-Docker-Controller/api/types"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types/docker_controller"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types/hosts"
 	hosts2 "github.com/PenguinCats/Unison-Docker-Controller/internal/hosts"
@@ -11,6 +11,7 @@ import (
 	"github.com/PenguinCats/Unison-Docker-Controller/pkg/controller/internal/resource-controller"
 	"github.com/docker/docker/client"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/sirupsen/logrus"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -29,22 +30,16 @@ type DockerController struct {
 	cli *client.Client
 }
 
-func (ctr *DockerController) getCCB(containerID string) (*container2.ContainerControlBlock, error) {
+func (ctr *DockerController) getCCB(ExtContainerID string) (*container2.ContainerControlBlock, error) {
 	ctr.containerCtrlBlkMutex.RLock()
 	defer ctr.containerCtrlBlkMutex.RUnlock()
 
-	if ccb, ok := ctr.containerCtrlBlk[containerID]; ok {
+	if ccb, ok := ctr.containerCtrlBlk[ExtContainerID]; ok {
 		return ccb, nil
 	}
 
-	return nil, fmt.Errorf("container [%s] does not exist", containerID)
-}
-
-func (ctr *DockerController) ContainerIsExist(containerID string) bool {
-	ctr.containerCtrlBlkMutex.RLock()
-	defer ctr.containerCtrlBlkMutex.RUnlock()
-	_, ok := ctr.containerCtrlBlk[containerID]
-	return ok
+	logrus.Warningf("container [%s] does not exist", ExtContainerID)
+	return nil, types.ErrContainerNotExist
 }
 
 func NewDockerController(dccb *docker_controller.DockerControllerCreatBody) (*DockerController, error) {
@@ -101,7 +96,8 @@ func getStorageSize(storagePoolName string) (int64, error) {
 		"-o", strings.Join(columns, ","),
 	).Output()
 	if err != nil {
-		return 0, fmt.Errorf("get storage size fail")
+		logrus.Warning("get storage size fail")
+		return 0, types.ErrInternalError
 	}
 
 	var pairsRE = regexp.MustCompile(`([A-Z:]+)=(?:"(.*?)")`)
@@ -109,7 +105,8 @@ func getStorageSize(storagePoolName string) (int64, error) {
 	for s.Scan() {
 		pairs := pairsRE.FindAllStringSubmatch(s.Text(), -1)
 		if len(pairs) != 2 || len(pairs[0]) != 3 || len(pairs[1]) != 3 {
-			return 0, fmt.Errorf("get storage size fail")
+			logrus.Warning("get storage size fail")
+			return 0, types.ErrInternalError
 		}
 
 		name := pairs[0][2]
@@ -117,11 +114,17 @@ func getStorageSize(storagePoolName string) (int64, error) {
 			sizeString := pairs[1][2]
 			size, err := strconv.ParseInt(sizeString, 10, 64)
 			if err != nil {
-				return 0, fmt.Errorf("get storage size fail")
+				logrus.Warning("get storage size fail")
+				return 0, types.ErrInternalError
 			}
 
 			return size, nil
 		}
 	}
-	return 0, fmt.Errorf("get storage size fail")
+	logrus.Warning("get storage size fail")
+	return 0, types.ErrInternalError
+}
+
+func (ctr *DockerController) GetHostInfo() hosts.HostInfo {
+	return ctr.hostInfo
 }

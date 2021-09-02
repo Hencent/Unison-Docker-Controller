@@ -1,6 +1,8 @@
 package container
 
 type ContainerCreateBody struct {
+	ExtContainerID string
+
 	ImageName string
 
 	ExposedTCPPorts []string

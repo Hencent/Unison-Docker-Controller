@@ -2,8 +2,9 @@ package resource_controller
 
 import (
 	"container/list"
-	"errors"
+	"github.com/PenguinCats/Unison-Docker-Controller/api/types"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types/resource"
+	"github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 
@@ -36,20 +37,24 @@ type ResourceController struct {
 func splitPortRange(s string) ([]string, error) {
 	portRange := strings.Split(s, "-")
 	if len(portRange) != 2 {
-		return nil, errors.New("invalid host port")
+		logrus.Warning("invalid host port")
+		return nil, types.ErrInternalError
 	}
 	portBegin, err := strconv.Atoi(portRange[0])
 	if err != nil {
-		return nil, errors.New("invalid host port")
+		logrus.Warning("invalid host port")
+		return nil, types.ErrInternalError
 	}
 
 	portEnd, err := strconv.Atoi(portRange[1])
 	if err != nil {
-		return nil, errors.New("invalid host port")
+		logrus.Warning("invalid host port")
+		return nil, types.ErrInternalError
 	}
 
 	if portBegin > portEnd {
-		return nil, errors.New("invalid host port")
+		logrus.Warning("invalid host port")
+		return nil, types.ErrInternalError
 	}
 
 	var ports []string
@@ -76,7 +81,7 @@ func NewResourceController(rcc *ResourceControllerCreatBody) (*ResourceControlle
 	r.portAvailableList = list.New()
 	ports, err := splitPortRange(rcc.HostPortRange)
 	if err != nil {
-		return nil, errors.New("build resource controller fail")
+		return nil, err
 	}
 	for _, port := range ports {
 		r.portAvailableList.PushBack(port)
@@ -90,7 +95,7 @@ func (rc *ResourceController) CoreRequest(cnt int) ([]string, error) {
 	defer rc.mu.Unlock()
 
 	if cnt > rc.coreAvailableList.Len() {
-		return nil, errors.New("no enough empty cores")
+		return nil, types.ErrInsufficientResource
 	}
 
 	var cores []string
@@ -119,7 +124,7 @@ func (rc *ResourceController) MemoryRequest(size int64) error {
 	defer rc.mu.Unlock()
 
 	if rc.memoryLimit-rc.memoryAllocated < size {
-		return errors.New("no enough empty memory")
+		return types.ErrInsufficientResource
 	}
 
 	rc.memoryAllocated += size
@@ -145,7 +150,7 @@ func (rc *ResourceController) StorageRequest(size int64) error {
 	defer rc.mu.Unlock()
 
 	if rc.storageLimit-rc.storageAllocated < size {
-		return errors.New("no enough empty memory")
+		return types.ErrInsufficientResource
 	}
 
 	rc.storageAllocated += size
@@ -157,7 +162,7 @@ func (rc *ResourceController) PortRequest(cnt int) ([]string, error) {
 	defer rc.mu.Unlock()
 
 	if cnt > rc.portAvailableList.Len() {
-		return nil, errors.New("no enough empty ports")
+		return nil, types.ErrInsufficientResource
 	}
 
 	var ports []string
@@ -186,7 +191,7 @@ func (rc *ResourceController) FixedResourceRequest(storageSize int64, portCnt in
 
 	if rc.storageLimit-rc.storageAllocated < storageSize ||
 		rc.portAvailableList.Len() < portCnt {
-		return nil, errors.New("no enough resource")
+		return nil, types.ErrInsufficientResource
 	}
 
 	rc.storageAllocated += storageSize
@@ -219,7 +224,7 @@ func (rc *ResourceController) RunningResourceRequest(coreCnt int, memorySize int
 
 	if rc.coreAvailableList.Len() < coreCnt ||
 		rc.memoryLimit-rc.memoryAllocated < memorySize {
-		return nil, errors.New("no enough resource")
+		return nil, types.ErrInsufficientResource
 	}
 
 	var coreList []string
@@ -246,11 +251,11 @@ func (rc *ResourceController) RunningResourceRelease(coreList []string, memorySi
 	rc.memoryAllocated -= memorySize
 }
 
-func (rc *ResourceController) GetResourceAvailable() *resource.SystemResourceAvailable {
+func (rc *ResourceController) GetResourceAvailable() *resource.ResourceAvailable {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
-	return &resource.SystemResourceAvailable{
+	return &resource.ResourceAvailable{
 		MemoryAvailable:  rc.memoryLimit - rc.memoryAllocated,
 		StorageAvailable: rc.storageLimit - rc.storageAllocated,
 		CoreAvailable:    rc.coreAvailableList.Len(),

@@ -3,8 +3,9 @@ package container_controller
 import "sync"
 
 type ContainerControlBlock struct {
-	ContainerID string
-	ImageName   string
+	UECContainerID string
+	ContainerID    string
+	ImageName      string
 
 	// Networks
 	ExposedTCPPorts        []string

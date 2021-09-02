@@ -1,22 +1,17 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types/container"
 )
 
-func (ctr *DockerController) ContainerProfile(containerID string) (container.ContainerProfile, error) {
-	if !ctr.ContainerIsExist(containerID) {
-		return container.ContainerProfile{}, fmt.Errorf("container [%s] does not exist", containerID)
-	}
-
-	ccb, err := ctr.getCCB(containerID)
+func (ctr *DockerController) ContainerProfile(ExtContainerID string) (container.ContainerProfile, error) {
+	ccb, err := ctr.getCCB(ExtContainerID)
 	if err != nil {
 		return container.ContainerProfile{}, err
 	}
 
 	cp := container.ContainerProfile{
-		ContainerID:            containerID,
+		ExtContainerID:         ExtContainerID,
 		ImageName:              ccb.ImageName,
 		ExposedTCPPorts:        ccb.ExposedTCPPorts,
 		ExposedTCPMappingPorts: ccb.ExposedTCPMappingPorts,

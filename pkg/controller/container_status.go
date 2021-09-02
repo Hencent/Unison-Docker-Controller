@@ -3,30 +3,30 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	types2 "github.com/PenguinCats/Unison-Docker-Controller/api/types"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types/container"
+	container2 "github.com/PenguinCats/Unison-Docker-Controller/pkg/controller/internal/container-controller"
 	"github.com/docker/docker/api/types"
+	"github.com/sirupsen/logrus"
 )
 
-func (ctr *DockerController) ContainerStats(containerID string) (container.ContainerStatus, error) {
-	if !ctr.ContainerIsExist(containerID) {
-		return container.ContainerStatus{}, fmt.Errorf("container [%s] does not exist", containerID)
-	}
-
-	cj, err := ctr.getContainerJson(containerID)
+func (ctr *DockerController) containerStatsHelper(ccb *container2.ContainerControlBlock) (container.ContainerStatus, error) {
+	cj, err := ctr.getContainerJson(ccb.ContainerID)
 	if err != nil {
 		return container.ContainerStatus{}, err
 	}
 
-	resp, err := ctr.cli.ContainerStatsOneShot(context.Background(), containerID)
+	resp, err := ctr.cli.ContainerStatsOneShot(context.Background(), ccb.ContainerID)
 	if err != nil {
-		return container.ContainerStatus{}, err
+		logrus.Warning(err.Error())
+		return container.ContainerStatus{}, types2.ErrInternalError
 	}
 	dec := json.NewDecoder(resp.Body)
 	var stats *types.StatsJSON
 	err = dec.Decode(&stats)
 	if err != nil {
-		return container.ContainerStatus{}, err
+		logrus.Warning(err.Error())
+		return container.ContainerStatus{}, types2.ErrInternalError
 	}
 
 	// container stats
@@ -61,13 +61,31 @@ func (ctr *DockerController) ContainerStats(containerID string) (container.Conta
 	return cs, nil
 }
 
-func (ctr *DockerController) getContainerJson(containerID string) (types.ContainerJSON, error) {
-	if !ctr.ContainerIsExist(containerID) {
-		return types.ContainerJSON{}, fmt.Errorf("container [%s] does not exist", containerID)
+func (ctr *DockerController) ContainerAllStats() map[string]container.ContainerStatus {
+	mp := make(map[string]container.ContainerStatus)
+	for _, ccb := range ctr.containerCtrlBlk {
+		cs, err := ctr.containerStatsHelper(ccb)
+		if err == nil {
+			mp[ccb.UECContainerID] = cs
+		}
 	}
+	return mp
+}
+
+func (ctr *DockerController) ContainerStats(ExtContainerID string) (container.ContainerStatus, error) {
+	ccb, err := ctr.getCCB(ExtContainerID)
+	if err != nil {
+		return container.ContainerStatus{}, err
+	}
+
+	return ctr.containerStatsHelper(ccb)
+}
+
+func (ctr *DockerController) getContainerJson(containerID string) (types.ContainerJSON, error) {
 	cj, err := ctr.cli.ContainerInspect(context.Background(), containerID)
 	if err != nil {
-		return types.ContainerJSON{}, err
+		logrus.Warning(err.Error())
+		return types.ContainerJSON{}, types2.ErrInternalError
 	}
 
 	return cj, nil

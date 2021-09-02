@@ -1,6 +1,6 @@
 package resource
 
-type SystemResourceAvailable struct {
+type ResourceAvailable struct {
 	MemoryAvailable  int64
 	StorageAvailable int64
 	CoreAvailable    int

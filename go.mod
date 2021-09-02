@@ -10,5 +10,6 @@ require (
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/shirou/gopsutil v3.20.12+incompatible
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	google.golang.org/grpc v1.39.1 // indirect
 )

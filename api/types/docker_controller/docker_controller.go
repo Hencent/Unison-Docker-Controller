@@ -8,9 +8,7 @@ type DockerControllerCreatBody struct {
 
 	CoreAvailableList []string
 
-	HostIP        string
 	HostPortRange string // "14000-15000"
-	HostPortBias  int
 
 	ContainerStopTimeout int
 }

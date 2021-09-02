@@ -2,10 +2,11 @@ package controller
 
 import (
 	"context"
-	"fmt"
+	types2 "github.com/PenguinCats/Unison-Docker-Controller/api/types"
 	container_controller "github.com/PenguinCats/Unison-Docker-Controller/pkg/controller/internal/container-controller"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/sirupsen/logrus"
 )
 
 func getCoreListString(coreList []string) string {
@@ -36,7 +37,8 @@ func (ctr *DockerController) allocateRunningResourceForContainer(ccb *container_
 		RestartPolicy: container.RestartPolicy{},
 	})
 	if err != nil {
-		return err
+		logrus.Warning(err.Error())
+		return types2.ErrInternalError
 	}
 
 	ccb.UpdateRunningResourceAllocated(coreList)
@@ -49,12 +51,8 @@ func (ctr *DockerController) releaseRunningResourceForContainer(ccb *container_c
 	ccb.UpdateRunningResourceAllocated([]string{})
 }
 
-func (ctr *DockerController) ContainerStart(containerID string) error {
-	if !ctr.ContainerIsExist(containerID) {
-		return fmt.Errorf("container [%s] does not exist", containerID)
-	}
-
-	ccb, err := ctr.getCCB(containerID)
+func (ctr *DockerController) ContainerStart(ExtContainerID string) error {
+	ccb, err := ctr.getCCB(ExtContainerID)
 	if err != nil {
 		return err
 	}
@@ -69,9 +67,9 @@ func (ctr *DockerController) ContainerStart(containerID string) error {
 		}
 	}()
 
-	err = ctr.cli.ContainerStart(context.Background(), containerID, types.ContainerStartOptions{})
+	err = ctr.cli.ContainerStart(context.Background(), ccb.ContainerID, types.ContainerStartOptions{})
 	if err != nil {
-		return err
+		return types2.ErrInternalError
 	}
 
 	return nil

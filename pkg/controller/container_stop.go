@@ -2,22 +2,18 @@ package controller
 
 import (
 	"context"
-	"fmt"
+	types2 "github.com/PenguinCats/Unison-Docker-Controller/api/types"
 )
 
-func (ctr *DockerController) ContainerStop(containerID string) error {
-	if !ctr.ContainerIsExist(containerID) {
-		return fmt.Errorf("container [%s] does not exist", containerID)
-	}
-
-	ccb, err := ctr.getCCB(containerID)
+func (ctr *DockerController) ContainerStop(ExtContainerID string) error {
+	ccb, err := ctr.getCCB(ExtContainerID)
 	if err != nil {
 		return err
 	}
 
-	err = ctr.cli.ContainerStop(context.Background(), containerID, nil)
+	err = ctr.cli.ContainerStop(context.Background(), ccb.ContainerID, nil)
 	if err != nil {
-		return err
+		return types2.ErrInternalError
 	}
 
 	ctr.releaseRunningResourceForContainer(ccb)

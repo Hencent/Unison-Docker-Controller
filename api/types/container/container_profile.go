@@ -3,8 +3,8 @@ package container
 // ContainerProfile
 // static container info
 type ContainerProfile struct {
-	ContainerID string
-	ImageName   string
+	ExtContainerID string
+	ImageName      string
 
 	ExposedTCPPorts        []string
 	ExposedTCPMappingPorts []string
