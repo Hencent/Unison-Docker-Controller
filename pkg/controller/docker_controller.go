@@ -101,17 +101,16 @@ func NewDockerController(dccb *docker_controller.DockerControllerCreatBody) (*Do
 		if err != nil {
 			return nil, err
 		}
-	}
-	db, err := leveldb.OpenFile("/var/opt/uec/docker-controller.db", nil)
-	if err != nil {
-		return nil, err
-	}
-	if dccb.Reload {
+	} else {
 		//恢复，先暂停所有容器
 		err := stopAllContainer(dockerClient)
 		if err != nil {
 			return nil, err
 		}
+	}
+	db, err := leveldb.OpenFile("/var/opt/uec/docker-controller.db", nil)
+	if err != nil {
+		return nil, err
 	}
 
 	c := &DockerController{
