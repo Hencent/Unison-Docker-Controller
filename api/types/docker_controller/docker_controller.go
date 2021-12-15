@@ -11,4 +11,6 @@ type DockerControllerCreatBody struct {
 	HostPortRange string // "14000-15000"
 
 	ContainerStopTimeout int
+
+	Reload bool
 }

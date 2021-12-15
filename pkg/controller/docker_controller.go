@@ -3,20 +3,26 @@ package controller
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"encoding/json"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types/docker_controller"
 	"github.com/PenguinCats/Unison-Docker-Controller/api/types/hosts"
 	hosts2 "github.com/PenguinCats/Unison-Docker-Controller/internal/hosts"
 	container2 "github.com/PenguinCats/Unison-Docker-Controller/pkg/controller/internal/container-controller"
 	"github.com/PenguinCats/Unison-Docker-Controller/pkg/controller/internal/resource-controller"
+	types2 "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type DockerController struct {
@@ -25,9 +31,11 @@ type DockerController struct {
 
 	containerCtrlBlk      map[string]*container2.ContainerControlBlock
 	containerCtrlBlkMutex sync.RWMutex
-	containerStopTimeout  int
+	containerStopTimeout  time.Duration
 
 	cli *client.Client
+
+	db *leveldb.DB
 }
 
 func (ctr *DockerController) getCCB(ExtContainerID string) (*container2.ContainerControlBlock, error) {
@@ -74,17 +82,84 @@ func NewDockerController(dccb *docker_controller.DockerControllerCreatBody) (*Do
 		return nil, err
 	}
 
+	if !dccb.Reload {
+		// 不恢复，则删除元数据并实际清空所有 container
+		dbPath := "/var/opt/uec/docker-controller.db"
+		exist, err := isPathExists(dbPath)
+		if err != nil {
+			return nil, err
+		}
+		if exist {
+			e := os.RemoveAll(dbPath)
+			if e != nil {
+				logrus.Warning(e.Error())
+				return nil, err
+			}
+		}
+
+		err = removeAllContainer(dockerClient)
+		if err != nil {
+			return nil, err
+		}
+	}
+	db, err := leveldb.OpenFile("/var/opt/uec/docker-controller.db", nil)
+	if err != nil {
+		return nil, err
+	}
+	if dccb.Reload {
+		//恢复，先暂停所有容器
+		err := stopAllContainer(dockerClient)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	c := &DockerController{
 		hostInfo:             hostInfo,
 		resourceCtrl:         rc,
 		containerCtrlBlk:     make(map[string]*container2.ContainerControlBlock),
-		containerStopTimeout: dccb.ContainerStopTimeout,
+		containerStopTimeout: time.Duration(dccb.ContainerStopTimeout) * time.Second,
 		cli:                  dockerClient,
+		db:                   db,
+	}
+
+	// 恢复，填充 container control block
+	if dccb.Reload {
+		iter := db.NewIterator(nil, nil)
+		for iter.Next() {
+			key := iter.Key()
+			value := iter.Value()
+
+			var ccb container2.ContainerControlBlock
+			err := json.Unmarshal(value, &ccb)
+			if err != nil {
+				return nil, err
+			}
+			ccb.RenewMutexAfterReload()
+
+			err = c.resourceCtrl.StorageRequest(ccb.StorageRequest)
+			if err != nil {
+				logrus.Warning(err.Error())
+				return nil, err
+			}
+			c.containerCtrlBlk[string(key)] = &ccb
+		}
 	}
 
 	//c.beginPeriodicTask()
 
 	return c, nil
+}
+
+func isPathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 func getStorageSize(storagePoolName string) (int64, error) {
@@ -123,6 +198,45 @@ func getStorageSize(storagePoolName string) (int64, error) {
 	}
 	logrus.Warning("get storage size fail")
 	return 0, types.ErrInternalError
+}
+
+func removeAllContainer(client *client.Client) error {
+	containers, err := client.ContainerList(context.Background(), types2.ContainerListOptions{
+		All: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, c := range containers {
+		err = client.ContainerRemove(context.Background(), c.ID, types2.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func stopAllContainer(client *client.Client) error {
+	containers, err := client.ContainerList(context.Background(), types2.ContainerListOptions{
+		All: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, c := range containers {
+		err = client.ContainerStop(context.Background(), c.ID, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ctr *DockerController) GetHostInfo() hosts.HostInfo {

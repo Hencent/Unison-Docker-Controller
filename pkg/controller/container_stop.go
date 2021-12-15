@@ -11,7 +11,7 @@ func (ctr *DockerController) ContainerStop(ExtContainerID string) error {
 		return err
 	}
 
-	err = ctr.cli.ContainerStop(context.Background(), ccb.ContainerID, nil)
+	err = ctr.cli.ContainerStop(context.Background(), ccb.ContainerID, &ctr.containerStopTimeout)
 	if err != nil {
 		return types2.ErrInternalError
 	}

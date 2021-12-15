@@ -14,33 +14,40 @@ func main() {
 		StorageReserveRatioForImage: 5,
 		CoreAvailableList:           []string{"2", "3", "4", "5"},
 		StoragePoolName:             "docker-thinpool",
+		HostPortRange:               "18000-19000",
 		ContainerStopTimeout:        5,
+		Reload:                      false,
 	})
-	fmt.Println(errController)
+
+	if errController != nil {
+		fmt.Println(errController.Error())
+		return
+	}
 
 	fmt.Println(ctr)
 	//
 	//volumes := []string{"zhangbinjie", "tdd"}
 	//_ = ctr.VolumeCreate("zhangbinjie")
 	//_ = ctr.VolumeCreate("tdd")
-	//
-	//cID, err1 := ctr.ContainerCreat(container.ContainerCreateBody{
+
+	//cID, err1 := ctr.ContainerCreate(container.ContainerCreateBody{
 	//	ImageName:     "ubuntu:latest",
 	//	CoreCnt:       2,
 	//	MemorySize:    524288000,
-	//	ContainerName: "pcat",
-	//	Mounts:        volumes,
+	//	StorageSize:    10737418240,
 	//})
-	//fmt.Println(cID, err1)
+	//if err1 != nil {
+	//	fmt.Println(err1.Error())
+	//	return
+	//}
+	//fmt.Println(cID)
+
 	//
 	//err2 := ctr.ContainerStart(cID)
 	//fmt.Println(err2)
-	//
-	////cID := "0dd144293cc4"
-	//
-	//usage, _ := ctr.ContainerResourceUsage(cID)
-	//memUsage := usage.Memory / 1024 / 1024
-	//fmt.Println(memUsage)
+
+	//cID := "0dd144293cc4"
+
 	//
 	//err3 := ctr.ContainerStop(cID)
 	//fmt.Println(err3)

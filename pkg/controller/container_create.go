@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	types2 "github.com/PenguinCats/Unison-Docker-Controller/api/types"
 	container2 "github.com/PenguinCats/Unison-Docker-Controller/api/types/container"
 	"github.com/PenguinCats/Unison-Docker-Controller/pkg/controller/internal/container-controller"
@@ -9,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"strconv"
 )
 
@@ -82,7 +84,6 @@ func (ctr *DockerController) ContainerCreate(cb container2.ContainerCreateBody) 
 		&container.Config{
 			Image:        cb.ImageName,
 			Tty:          true,
-			StopTimeout:  &ctr.containerStopTimeout,
 			ExposedPorts: portSet,
 		}, &container.HostConfig{
 			//Mounts:     mountInfo,
@@ -94,6 +95,7 @@ func (ctr *DockerController) ContainerCreate(cb container2.ContainerCreateBody) 
 		}, nil, nil, cb.ExtContainerID)
 
 	if err != nil {
+		logrus.Warning(err.Error())
 		return "", types2.ErrInternalError
 	}
 
@@ -121,6 +123,19 @@ func (ctr *DockerController) ContainerCreate(cb container2.ContainerCreateBody) 
 	ctr.containerCtrlBlkMutex.Lock()
 	ctr.containerCtrlBlk[cb.ExtContainerID] = ccb
 	ctr.containerCtrlBlkMutex.Unlock()
+
+	// 至此 container 创建成功，写入 leveldb 中以备日后恢复
+	ccbByte, err := json.Marshal(&ccb)
+	if err != nil {
+		return "", err
+	}
+	err = ctr.db.Put([]byte(cb.ExtContainerID), ccbByte, &opt.WriteOptions{
+		Sync: true,
+	})
+	if err != nil {
+		logrus.Warning(err.Error())
+		return "", types2.ErrLevelDbError
+	}
 
 	return resp.ID, nil
 }

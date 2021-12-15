@@ -8,4 +8,6 @@ var (
 	ErrInsufficientResource = errors.New("resource is insufficient")
 
 	ErrContainerNotExist = errors.New("container not exist")
+
+	ErrLevelDbError = errors.New("leveldb error")
 )
