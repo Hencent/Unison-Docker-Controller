@@ -82,9 +82,9 @@ func NewDockerController(dccb *docker_controller.DockerControllerCreatBody) (*Do
 		return nil, err
 	}
 
+	dbPath := "/var/opt/uec/docker-controller.db"
 	if !dccb.Reload {
 		// 不恢复，则删除元数据并实际清空所有 container
-		dbPath := "/var/opt/uec/docker-controller.db"
 		exist, err := isPathExists(dbPath)
 		if err != nil {
 			return nil, err
@@ -108,7 +108,7 @@ func NewDockerController(dccb *docker_controller.DockerControllerCreatBody) (*Do
 			return nil, err
 		}
 	}
-	db, err := leveldb.OpenFile("/var/opt/uec/docker-controller.db", nil)
+	db, err := leveldb.OpenFile(dbPath, nil)
 	if err != nil {
 		return nil, err
 	}
