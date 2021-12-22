@@ -16,7 +16,7 @@ func main() {
 		StoragePoolName:             "docker-thinpool",
 		HostPortRange:               "18000-19000",
 		ContainerStopTimeout:        5,
-		Reload:                      false,
+		Reload:                      true,
 	})
 
 	if errController != nil {

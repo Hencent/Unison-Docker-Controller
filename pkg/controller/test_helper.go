@@ -12,6 +12,7 @@ func getDockerControllerForTest(t *testing.T) *DockerController {
 		CoreAvailableList:  []string{"2", "3", "4", "5"},
 		StoragePoolName:    "docker-thinpool",
 		HostPortRange:      "14000-15000",
+		Reload:             true,
 	})
 
 	return dc

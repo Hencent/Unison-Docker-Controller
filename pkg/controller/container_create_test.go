@@ -11,7 +11,7 @@ func TestContainerCreate(t *testing.T) {
 	dc := getDockerControllerForTest(t)
 
 	containerID, err := dc.ContainerCreate(container.ContainerCreateBody{
-		ImageName:       "fedora",
+		ImageName:       "ubuntu:20.04",
 		ExposedTCPPorts: []string{"1001", "1002"},
 		ExposedUDPPorts: []string{"1003", "1004"},
 		Mounts:          nil,
